@@ -6,7 +6,7 @@ Reenvía el mensaje al resto de los clientes, excepto al que lo originó, tambi�
 
 Los clientes tienen hilos para conectarse al servidor, para escribirle mensajes al servidor, y también para recibir mensajes del mismo.
 
-# DETALLES A REVISAR:
+# DETALLES A REVISAR (v0.9):
 - Uso de teclado/mensaje hardcodeado.
 - Emprolijar salidas por pantalla (consola).
 - Emprolijar código.
