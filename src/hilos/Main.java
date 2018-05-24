@@ -1,4 +1,4 @@
-package hilos;
+/*package hilos;
 
 import java.io.IOException;
 
@@ -7,11 +7,6 @@ public class Main {
 	public final static int PUERTO = 10001;
 	
 	public static void main(String[] args) throws IOException {
-		
-		//Inicio el servidor
-		Server servidor = new Server(PUERTO);
-		Thread ts = new Thread(servidor.new Escuchar());
-		ts.start();
 		
 		//Creo los clientes
 		Cliente cl1 = new Cliente(PUERTO, "Thread 1");
@@ -26,10 +21,10 @@ public class Main {
 		cl2_con.start();
 		
 		/*Thread cl3_con = new Thread(cl3.new Conectar());
-		cl3_con.start();*/
+		cl3_con.start();
 
 		
 
 	}
 
-}
+}*/

@@ -11,42 +11,41 @@ public class Cliente {
 	
 	private Socket socketCliente;
 	private int puerto;
-	private String mensaje;
 	
-	public Cliente(int puerto, String mensaje) throws UnknownHostException, IOException {
+	public Cliente(int puerto) throws UnknownHostException, IOException {
 		this.puerto = puerto;
-		this.mensaje = mensaje;
 	}
 	
 	public class Conectar implements Runnable {
 
 		@Override
 		public void run() {
-			//System.out.println("Cliente creado");
 			try {
-				//Me conecto al cliente, usando el localhost:puertoSV
-				socketCliente = new Socket("127.0.0.1", puerto);
-				
-				//En cada cliente creo e inicio un thread para escribir al sv
-				Escribir esc = new Escribir(socketCliente);
-				Thread esc_thread = new Thread(esc);
-				esc_thread.start();
-				
-				//En cada cliente creo e inicio un thread para leer lo que viene del sv
-				Leer leer = new Leer(socketCliente);
-				Thread leer_thread = new Thread(leer);
-				leer_thread.start();
-				
-			} catch (IOException e) {
-				System.out.println("Error al conectar al servidor");
+			//System.out.println("Cliente creado");
+			//Me conecto al cliente, usando el localhost:puertoSV
+			socketCliente = new Socket("127.0.0.1", puerto);
+			
+			//En cada cliente creo e inicio un thread para escribir al sv
+			Scanner sc = new Scanner(System.in);
+			Escribir esc = new Escribir(socketCliente, Thread.currentThread().getName(), sc);
+			Thread esc_thread = new Thread(esc);
+			esc_thread.start();
+			
+			//En cada cliente creo e inicio un thread para leer lo que viene del sv
+			Leer leer = new Leer(socketCliente);
+			Thread leer_thread = new Thread(leer);
+			leer_thread.start();
+			
+			} catch(IOException e) {
+				System.out.println("Error al conectar al servidor y/o inicializar los threads");
 			}
-
 		}
 	}
 	
 	public class Leer implements Runnable {
 
 		private ObjectInputStream in;
+		private String msj;
 		
 		Leer(Socket socketCliente) throws IOException {
 			//Inicializo el flujo de entrada del socket
@@ -55,43 +54,50 @@ public class Cliente {
 		
 		@Override
 		public void run() {
-			while(true) {
-				try {
-					//System.out.println("Chequear mensaje");
-					//Leo el mensaje que manda el cliente
-					String msj = (String) in.readObject();
+			do {
+				if(in != null) {
+					try {
+						msj = (String) in.readObject();
+					} catch (IOException | ClassNotFoundException e) {
+						System.out.println("Error al leer. Puede que el cliente se haya desconectado");
+					}
+				} 
+				
+				if(!msj.equals("Salir")) {
 					System.out.println("Mensaje del servidor: " + msj);
-				} catch (IOException | ClassNotFoundException e) {
-					e.printStackTrace();
+
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) { }
+				} else {
+					in = null;
 				}
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-				}
-			} 
+			} while(in != null);
 		}
 	}
 
 	public class Escribir implements Runnable {
 
 		private ObjectOutputStream out;
+		private String nombre;
+		Scanner teclado;
 		
-		Escribir(Socket socketCliente) throws IOException {
+		Escribir(Socket socketCliente, String nombreThread, Scanner sc) throws IOException {
 			//Inicializo el flujo de salida del socket
 			out = new ObjectOutputStream(socketCliente.getOutputStream());
+			this.nombre = nombreThread;
+			teclado = sc;
 		}
 		
 		@Override
 		public void run() {
 			
 			String str = null;
-			
-			while(true) {
-				System.out.println("Escribir al sv: ");
-				Scanner teclado = new Scanner(System.in);
+			do {
+				System.out.print("\n" + nombre + " - Escribir al sv: ");
 				str = teclado.nextLine();
-				//System.out.println(out.toString() + str);
-				
+				if(!str.equals("Salir"))
+					str = nombre + " - " + str;
 				try {
 					//System.out.println("Escribiendo al sv");
 					out.writeObject(str);
@@ -101,11 +107,28 @@ public class Cliente {
 				}
 				
 				try {
-					Thread.sleep(1000);
+					Thread.sleep(6000);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-			}
+			} while(!str.equals("Salir"));
+			teclado.close();
 		}
+	}
+	
+	public static void main(String[] args) throws IOException {
+		
+		//Creo los clientes
+		Cliente cl1 = new Cliente(10001);
+		Cliente cl2 = new Cliente(10001);
+		
+		//Conecto los clientes al servidor
+		Thread cl1_con = new Thread(cl1.new Conectar());
+		cl1_con.setName("CL1");
+		cl1_con.start();
+		
+		Thread cl2_con = new Thread(cl2.new Conectar());
+		cl2_con.setName("CL2");
+		cl2_con.start();
 	}
 }

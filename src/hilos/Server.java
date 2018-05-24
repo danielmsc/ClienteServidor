@@ -9,14 +9,13 @@ import java.util.HashMap;
 
 public class Server {
 
-	private HashMap<Integer,Socket> listaClientes;	//HashMap con clave=nroCliente, value=socketCliente -> lo uso para repetir los mensajes a todos los clientes
+	private HashMap<Socket,ObjectOutputStream> listaClientes;	//Lista de sockets de los clientes
 	private ServerSocket listener;	//Socket del sv para escuchar a los nuevos clientes
-	private int cantClientes = 1;
 	private ObjectOutputStream out;
 	private ObjectInputStream in;
 	
 	public Server(int puerto) throws IOException {
-		listaClientes = new HashMap<Integer,Socket>();
+		listaClientes = new HashMap<Socket,ObjectOutputStream>();
 		listener = new ServerSocket(puerto);
 	}
 	
@@ -24,25 +23,24 @@ public class Server {
 		
 		@Override
 		public void run() {
-			while(true) {
-				try {
-					//System.out.println("Escuchando...");
+			System.out.println("SERVIDOR CREADO EN EL PUERTO " + listener.getLocalPort());
+			try {
+				for(int i=0; i<2; i++) {
 					Socket socketCliente = listener.accept(); 
-					listaClientes.put(cantClientes, socketCliente);	//Al cliente aceptado lo agrego al HashMap
 					System.out.println("Conexion de " + socketCliente.getInetAddress() + ":" + socketCliente.getPort());
 					in = new ObjectInputStream(socketCliente.getInputStream());	//Inicializo flujo para leer data del cliente
 					out = new ObjectOutputStream(socketCliente.getOutputStream());	//Inicializo flujo para escribir data al cliente
+					listaClientes.put(socketCliente, out);	//Al cliente aceptado lo agrego en el hashmap
 					
 					//Thread para leer al cliente (uno por cada cliente)
-					LeerCliente lc_thread = new LeerCliente(socketCliente, in);
+					LeerCliente lc_thread = new LeerCliente(socketCliente, in, out);
 					Thread leer = new Thread(lc_thread);
-					leer.setName(Integer.toString(cantClientes));
 					leer.start();
-					
-					cantClientes++;
-				} catch (IOException e) {
-					e.printStackTrace();
 				}
+				
+				listener.close();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 	}
@@ -51,51 +49,75 @@ public class Server {
 		
 		private Socket socketCliente;
 		private ObjectInputStream in;			
+		private ObjectOutputStream out;	
 		private String str;
 		
-		LeerCliente(Socket cliente, ObjectInputStream in) throws IOException {
+		LeerCliente(Socket cliente, ObjectInputStream in, ObjectOutputStream out) throws IOException {
 			//in = new ObjectInputStream(cliente.getInputStream());
 			this.in = in;
+			this.out = out;
 			socketCliente = cliente;
 		}
 		
 		@Override
 		public void run() {
-			while(true) {
+			do {
 				try {
-						//System.out.println("leo");
-						str = (String) in.readObject();
-						System.out.println("Mensaje del " + Thread.currentThread().getName() + ": " + str);
-						
-						//Creo threads para repetir el mensaje a todos los clientes, menos al que envio el mensaje original
-						for(int i=0; i<listaClientes.size(); i++) {
-							if((i+1) != Integer.parseInt(Thread.currentThread().getName())) {
-								System.out.println("Mando mensaje a " + (i+1));
-								Repetir rep = new Repetir(listaClientes.get(i+1), out, str);
-								Thread rep_thread = new Thread(rep);
-								rep_thread.start();
-							}
-						}
+					str = (String) in.readObject();
 				} catch (IOException | ClassNotFoundException e) {
 					System.out.println("Error al leer");
 				}
-				try {
-					Thread.sleep(5000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+					
+				if(!str.equals("Salir")) {
+					System.out.println("Mensaje: " + str);
+					//Creo threads para repetir el mensaje a todos los clientes, menos al que envio el mensaje original
+					for(Socket cliente : listaClientes.keySet()) {
+						if(cliente != socketCliente) {
+							try {
+								Repetir rep = new Repetir(listaClientes.get(cliente), str);
+								Thread rep_thread = new Thread(rep);
+								rep_thread.start();
+							} catch (IOException e) {
+								System.out.println("Error al reenviar el mensaje al resto de los clientes");
+							}
+						}
+					}
+					try {
+						Thread.sleep(5000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				} else {
+					System.out.println("Desconectando cliente");
+					
+					try {
+						out.writeObject(str);
+						/*Repetir rep = new Repetir(listaClientes.get(socketCliente), str);
+						Thread rep_thread = new Thread(rep);
+						rep_thread.start();*/
+					} catch (IOException e1) {
+						System.out.println("Error al notificar al cliente");
+					}
+					
+					try {
+						in.close();
+						out.close();
+						socketCliente.close();
+					} catch (IOException e) {
+						System.out.println("Error al cerrar el socket y los flujos");
+					}
+					listaClientes.remove(socketCliente);
 				}
-			}
+			} while(!str.equals("Salir"));
 		}
 	}
 	
 	private class Repetir implements Runnable {
 		
-		private Socket socketCliente;
 		private ObjectOutputStream out;
 		private String str;
 		
-		Repetir(Socket cliente, ObjectOutputStream out, String msj) throws IOException {
-			this.socketCliente = cliente;
+		Repetir(ObjectOutputStream out, String msj) throws IOException {
 			this.out = out;
 			str = msj;
 		}
@@ -103,12 +125,22 @@ public class Server {
 		@Override
 		public void run() {
 			try {
-				System.out.println("Escribiendo a " + out.toString());
+				//System.out.println("Escribiendo a " + out.toString());
 				out.writeObject(str);
 				out.flush();
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.out.println("Error al repetir el mensaje");
 			}
 		}
 	}
+	
+	public static void main(String[] args) throws IOException {
+		
+		//Inicio el servidor
+		Server servidor = new Server(10001);
+		Thread ts = new Thread(servidor.new Escuchar());
+		ts.start();
+	}
 }
+
+
