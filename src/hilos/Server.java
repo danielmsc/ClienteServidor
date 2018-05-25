@@ -13,10 +13,12 @@ public class Server {
 	private ServerSocket listener;	//Socket del sv para escuchar a los nuevos clientes
 	private ObjectOutputStream out;
 	private ObjectInputStream in;
+	private int idCliente;
 	
 	public Server(int puerto) throws IOException {
 		listaClientes = new HashMap<Socket,ObjectOutputStream>();
 		listener = new ServerSocket(puerto);
+		idCliente = 1;
 	}
 	
 	public class Escuchar implements Runnable {
@@ -33,9 +35,10 @@ public class Server {
 					listaClientes.put(socketCliente, out);	//Al cliente aceptado lo agrego en el hashmap
 					
 					//Thread para leer al cliente (uno por cada cliente)
-					LeerCliente lc_thread = new LeerCliente(socketCliente, in, out);
+					LeerCliente lc_thread = new LeerCliente(socketCliente, in, out, idCliente);
 					Thread leer = new Thread(lc_thread);
 					leer.start();
+					idCliente++;
 				}
 				
 				listener.close();
@@ -51,12 +54,14 @@ public class Server {
 		private ObjectInputStream in;			
 		private ObjectOutputStream out;	
 		private String str;
+		private int id;
 		
-		LeerCliente(Socket cliente, ObjectInputStream in, ObjectOutputStream out) throws IOException {
+		LeerCliente(Socket cliente, ObjectInputStream in, ObjectOutputStream out, int idCliente) throws IOException {
 			//in = new ObjectInputStream(cliente.getInputStream());
 			this.in = in;
 			this.out = out;
 			socketCliente = cliente;
+			id = idCliente;
 		}
 		
 		@Override
@@ -69,7 +74,8 @@ public class Server {
 				}
 					
 				if(!str.equals("Salir")) {
-					System.out.println("Mensaje: " + str);
+					str = "Mensaje del cliente " + id + ": " + str;
+					System.out.println(str);
 					//Creo threads para repetir el mensaje a todos los clientes, menos al que envio el mensaje original
 					for(Socket cliente : listaClientes.keySet()) {
 						if(cliente != socketCliente) {
@@ -82,11 +88,11 @@ public class Server {
 							}
 						}
 					}
-					try {
-						Thread.sleep(5000);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+//					try {
+//						Thread.sleep(1000);
+//					} catch (InterruptedException e) {
+//						e.printStackTrace();
+//					}
 				} else {
 					System.out.println("Desconectando cliente");
 					

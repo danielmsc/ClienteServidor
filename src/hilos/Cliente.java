@@ -64,11 +64,11 @@ public class Cliente {
 				} 
 				
 				if(!msj.equals("Salir")) {
-					System.out.println("Mensaje del servidor: " + msj);
-
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) { }
+					System.out.println("\n" + msj);
+//
+//					try {
+//						Thread.sleep(1000);
+//					} catch (InterruptedException e) { }
 				} else {
 					in = null;
 				}
@@ -79,13 +79,11 @@ public class Cliente {
 	public class Escribir implements Runnable {
 
 		private ObjectOutputStream out;
-		private String nombre;
 		Scanner teclado;
 		
 		Escribir(Socket socketCliente, String nombreThread, Scanner sc) throws IOException {
 			//Inicializo el flujo de salida del socket
 			out = new ObjectOutputStream(socketCliente.getOutputStream());
-			this.nombre = nombreThread;
 			teclado = sc;
 		}
 		
@@ -94,10 +92,11 @@ public class Cliente {
 			
 			String str = null;
 			do {
-				System.out.print("\n" + nombre + " - Escribir al sv: ");
+				System.out.print("Escribir: ");
 				str = teclado.nextLine();
-				if(!str.equals("Salir"))
-					str = nombre + " - " + str;
+				System.out.println();
+//				if(!str.equals("Salir"))
+//					str = nombre + " - " + str;
 				try {
 					//System.out.println("Escribiendo al sv");
 					out.writeObject(str);
@@ -106,11 +105,11 @@ public class Cliente {
 					System.out.println("Error al escribir en el servidor");
 				}
 				
-				try {
-					Thread.sleep(6000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+//				try {
+//					Thread.sleep(6000);
+//				} catch (InterruptedException e) {
+//					e.printStackTrace();
+//				}
 			} while(!str.equals("Salir"));
 			teclado.close();
 		}
@@ -120,15 +119,14 @@ public class Cliente {
 		
 		//Creo los clientes
 		Cliente cl1 = new Cliente(10001);
-		Cliente cl2 = new Cliente(10001);
+		//Cliente cl2 = new Cliente(10001);
 		
 		//Conecto los clientes al servidor
 		Thread cl1_con = new Thread(cl1.new Conectar());
-		cl1_con.setName("CL1");
 		cl1_con.start();
 		
-		Thread cl2_con = new Thread(cl2.new Conectar());
-		cl2_con.setName("CL2");
-		cl2_con.start();
+//		Thread cl2_con = new Thread(cl2.new Conectar());
+//		cl2_con.setName("CL2");
+//		cl2_con.start();
 	}
 }
